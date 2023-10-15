@@ -48,7 +48,9 @@ export type ElementTransformer = {
   export: (
     node: LexicalNode,
     // eslint-disable-next-line no-shadow
-    traverseChildren: (node: ElementNode) => string,
+    exportChildren: (node: ElementNode) => string,
+    // eslint-disable-next-line no-shadow
+    _exportFormat: (node: TextNode, textContent: string) => string,
   ) => string | null;
   regExp: RegExp;
   replace: (
@@ -142,27 +144,45 @@ const listExport = (
   exportChildren: (node: ElementNode) => string,
   depth: number,
 ): string => {
-  const output = [];
+  const output: string[] = [];
   const children = listNode.getChildren();
   let index = 0;
-  for (const listItemNode of children) {
-    if ($isListItemNode(listItemNode)) {
-      if (listItemNode.getChildrenSize() === 1) {
-        const firstChild = listItemNode.getFirstChild();
+
+  for (const childNode of children) {
+    if ($isListItemNode(childNode)) {
+      if (childNode.getChildrenSize() === 1) {
+        const firstChild = childNode.getFirstChild();
         if ($isListNode(firstChild)) {
           output.push(listExport(firstChild, exportChildren, depth + 1));
           continue;
         }
       }
-      const indent = ' '.repeat(depth * LIST_INDENT_SIZE);
       const listType = listNode.getListType();
-      const prefix =
-        listType === 'number'
-          ? `${listNode.getStart() + index}. `
-          : listType === 'check'
-          ? `- [${listItemNode.getChecked() ? 'x' : ' '}] `
-          : '- ';
-      output.push(indent + prefix + exportChildren(listItemNode));
+      const indent = ' '.repeat(depth * LIST_INDENT_SIZE);
+      let prefix: string = '';
+
+      if (listType === 'number') {
+        prefix = `${listNode.getStart() + index}. `;
+      } else if (listType === 'check') {
+        prefix = `- [${childNode.getChecked() ? 'x' : ' '}] `;
+      } else {
+        prefix = '- ';
+      }
+
+      // support multi-line content
+      const [firstline, ...remainingLines] =
+        exportChildren(childNode).split('\n');
+      output.push(indent + prefix + firstline);
+
+      const childrenIndent = ' '.repeat((depth + 1) * LIST_INDENT_SIZE);
+
+      for (const line of remainingLines) {
+        // omit empty lines
+        if (line.trim()) {
+          output.push(childrenIndent + line);
+        }
+      }
+
       index++;
     }
   }
@@ -230,13 +250,18 @@ export const CODE: ElementTransformer = {
     if (!$isCodeNode(node)) {
       return null;
     }
+
     const textContent = node.getTextContent();
+
+    // prevent closing the code block by adding one more backtick
+    const blockMark = textContent.includes('```') ? '````' : '```';
+
     return (
-      '```' +
+      blockMark +
       (node.getLanguage() || '') +
       (textContent ? '\n' + textContent : '') +
       '\n' +
-      '```'
+      blockMark
     );
   },
   regExp: /^```(\w{1,10})?\s/,
@@ -248,7 +273,7 @@ export const CODE: ElementTransformer = {
 
 export const UNORDERED_LIST: ElementTransformer = {
   dependencies: [ListNode, ListItemNode],
-  export: (node, exportChildren) => {
+  export: (node, exportChildren, _) => {
     return $isListNode(node) ? listExport(node, exportChildren, 0) : null;
   },
   regExp: /^(\s*)[-*+]\s/,
@@ -258,7 +283,7 @@ export const UNORDERED_LIST: ElementTransformer = {
 
 export const CHECK_LIST: ElementTransformer = {
   dependencies: [ListNode, ListItemNode],
-  export: (node, exportChildren) => {
+  export: (node, exportChildren, _) => {
     return $isListNode(node) ? listExport(node, exportChildren, 0) : null;
   },
   regExp: /^(\s*)(?:-\s)?\s?(\[(\s|x)?\])\s/i,
@@ -268,7 +293,7 @@ export const CHECK_LIST: ElementTransformer = {
 
 export const ORDERED_LIST: ElementTransformer = {
   dependencies: [ListNode, ListItemNode],
-  export: (node, exportChildren) => {
+  export: (node, exportChildren, _) => {
     return $isListNode(node) ? listExport(node, exportChildren, 0) : null;
   },
   regExp: /^(\s*)(\d{1,})\.\s/,
@@ -279,12 +304,6 @@ export const ORDERED_LIST: ElementTransformer = {
 export const INLINE_CODE: TextFormatTransformer = {
   format: ['code'],
   tag: '`',
-  type: 'text-format',
-};
-
-export const HIGHLIGHT: TextFormatTransformer = {
-  format: ['highlight'],
-  tag: '==',
   type: 'text-format',
 };
 
@@ -339,18 +358,20 @@ export const ITALIC_UNDERSCORE: TextFormatTransformer = {
 // - then longer tags match (e.g. ** or __ should go before * or _)
 export const LINK: TextMatchTransformer = {
   dependencies: [LinkNode],
-  export: (node, exportChildren, exportFormat) => {
+  export: (node, _exportChildren, exportFormat) => {
     if (!$isLinkNode(node)) {
       return null;
     }
 
-    const firstChild = node.getFirstChild();
-    let textContent = node.getTextContent();
+    let textContent = '';
 
-    // Add text styles only if link has single text node inside. If it's more
-    // then one we ignore it as markdown does not support nested styles for links
-    if (node.getChildrenSize() === 1 && $isTextNode(firstChild)) {
-      textContent = exportFormat(firstChild, textContent);
+    for (const child of node.getChildren()) {
+      if ($isTextNode(child)) {
+        // Add text styles only if link has text node insides.
+        textContent += exportFormat(child, child.getTextContent());
+      } else {
+        textContent += child.getTextContent();
+      }
     }
 
     const title = node.getTitle();
