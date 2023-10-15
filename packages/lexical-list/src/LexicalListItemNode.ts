@@ -31,7 +31,6 @@ import {
   $applyNodeReplacement,
   $createParagraphNode,
   $isElementNode,
-  $isParagraphNode,
   $isRangeSelection,
   ElementNode,
 } from 'lexical';
@@ -73,6 +72,10 @@ export class ListItemNode extends ElementNode {
     super(key);
     this.__value = value === undefined ? 1 : value;
     this.__checked = checked;
+  }
+
+  isShadowRoot(): boolean {
+    return true;
   }
 
   createDOM(config: EditorConfig): HTMLElement {
@@ -406,7 +409,8 @@ export class ListItemNode extends ElementNode {
   }
 
   canMergeWith(node: LexicalNode): boolean {
-    return $isParagraphNode(node) || $isListItemNode(node);
+    // return $isParagraphNode(node) || $isListItemNode(node);
+    return $isListItemNode(node);
   }
 
   extractWithChild(

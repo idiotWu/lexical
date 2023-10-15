@@ -13,6 +13,7 @@ import {
 } from '@lexical/utils';
 import {
   $applyNodeReplacement,
+  $createParagraphNode,
   $createTextNode,
   $isElementNode,
   DOMConversionMap,
@@ -271,13 +272,33 @@ function normalizeChildren(nodes: Array<LexicalNode>): Array<ListItemNode> {
     const node = nodes[i];
     if ($isListItemNode(node)) {
       normalizedListItems.push(node);
-      const children = node.getChildren();
-      if (children.length > 1) {
-        children.forEach((child) => {
-          if ($isListNode(child)) {
-            normalizedListItems.push(wrapInListItem(child));
-          }
-        });
+      // const children = node.getChildren();
+      // if (children.length > 1) {
+      //   children.forEach((child) => {
+      //     if ($isListNode(child)) {
+      //       normalizedListItems.push(wrapInListItem(child));
+      //     }
+      //   });
+      // }
+
+      // wrap dissociated nodes in paragraphs
+      const pendingNodes: LexicalNode[] = [];
+
+      for (const child of node.getChildren()) {
+        if (!$isElementNode(child) || child.isInline()) {
+          pendingNodes.push(child);
+        } else if (pendingNodes.length) {
+          const paragraph = $createParagraphNode();
+          paragraph.append(...pendingNodes);
+          child.insertBefore(paragraph);
+          pendingNodes.length = 0;
+        }
+      }
+
+      if (pendingNodes.length) {
+        const paragraph = $createParagraphNode();
+        paragraph.append(...pendingNodes);
+        node.append(paragraph);
       }
     } else {
       normalizedListItems.push(wrapInListItem(node));

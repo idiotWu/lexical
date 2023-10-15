@@ -15,6 +15,7 @@ import type {
 import type {ElementNode, LexicalEditor, TextNode} from 'lexical';
 
 import {$isCodeNode} from '@lexical/code';
+import {$isListItemNode} from '@lexical/list';
 import {
   $createRangeSelection,
   $getSelection,
@@ -39,6 +40,8 @@ function runElementTransformers(
 
   if (
     !$isRootOrShadowRoot(grandParentNode) ||
+    ($isListItemNode(grandParentNode) &&
+      parentNode.is(grandParentNode.getFirstChild())) ||
     parentNode.getFirstChild() !== anchorNode
   ) {
     return false;

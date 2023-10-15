@@ -12,7 +12,7 @@ import type {HeadingTagType} from '@lexical/rich-text';
 import {$createCodeNode, $isCodeNode, CodeNode} from '@lexical/code';
 import {$createLinkNode, $isLinkNode, LinkNode} from '@lexical/link';
 import {
-  $createListItemNode,
+  $createListItemWithParagraph,
   $createListNode,
   $isListItemNode,
   $isListNode,
@@ -102,7 +102,7 @@ const listReplace = (listType: ListType): ElementTransformer['replace'] => {
   return (parentNode, children, match) => {
     const previousNode = parentNode.getPreviousSibling();
     const nextNode = parentNode.getNextSibling();
-    const listItem = $createListItemNode(
+    const listItem = $createListItemWithParagraph(
       listType === 'check' ? match[3] === 'x' : undefined,
     );
     if ($isListNode(nextNode) && nextNode.getListType() === listType) {

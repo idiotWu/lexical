@@ -13,7 +13,17 @@ import type {LexicalCommand} from 'lexical';
 
 import {createCommand} from 'lexical';
 
-import {$handleListInsertParagraph, insertList, removeList} from './formatList';
+import {
+  $createListItemWithParagraph,
+  $getNearestListItemNodesFromSelection,
+  $handleDelete,
+  $handleIndent,
+  $handleListInsertParagraph,
+  $handleOutdent,
+  insertList,
+  registerListTransformer,
+  removeList,
+} from './formatList';
 import {
   $createListItemNode,
   $isListItemNode,
@@ -24,15 +34,21 @@ import {$getListDepth} from './utils';
 
 export {
   $createListItemNode,
+  $createListItemWithParagraph,
   $createListNode,
   $getListDepth,
+  $getNearestListItemNodesFromSelection,
+  $handleDelete,
+  $handleIndent,
   $handleListInsertParagraph,
+  $handleOutdent,
   $isListItemNode,
   $isListNode,
   insertList,
   ListItemNode,
   ListNode,
   ListType,
+  registerListTransformer,
   removeList,
   SerializedListItemNode,
   SerializedListNode,
